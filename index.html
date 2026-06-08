@@ -418,10 +418,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function init() {
+async function init() {
   updateMonthLabel();
   setDefaultDate();
-  loadConfig();
+  await loadConfig(); // espera categorias carregarem antes do dashboard
   loadDash();
 }
 
