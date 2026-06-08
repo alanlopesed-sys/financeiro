@@ -232,12 +232,13 @@
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <h1>💵 Financeiro</h1>
+  <button onclick="reloadApp()" style="background:none;border:none;color:#fff;padding:4px 8px;cursor:pointer;font-size:20px;line-height:1;min-width:36px;min-height:36px" title="Atualizar">↻</button>
   <div class="month-nav">
     <button onclick="changeMonth(-1)">‹</button>
     <span id="monthLabel">—</span>
     <button onclick="changeMonth(1)">›</button>
   </div>
+  <div style="min-width:36px"></div>
 </div>
 
 <!-- MAIN -->
@@ -426,19 +427,46 @@ async function init() {
 }
 
 async function loadConfig() {
+  // Carrega cache instantaneamente se existir
+  const cached = localStorage.getItem('configCache');
+  if (cached) {
+    try {
+      const { categories, incomeTypes, caixinhas } = JSON.parse(cached);
+      state.categories  = categories;
+      state.incomeTypes = incomeTypes;
+      state.caixinhas   = caixinhas;
+      populateCategorySelect();
+      populateIncomeTypeSelect();
+      populateCaixinhaSelect();
+    } catch(e) { localStorage.removeItem('configCache'); }
+  }
+  // Atualiza do servidor em paralelo (1 chamada só)
   try {
-    const [cats, types, cx] = await Promise.all([
-      api('getCategories'),
-      api('getIncomeTypes'),
-      api('getCaixinhas')
-    ]);
-    state.categories  = cats;
-    state.incomeTypes = types;
-    state.caixinhas   = cx;
+    const cfg = await api('getConfig');
+    state.categories  = cfg.categories;
+    state.incomeTypes = cfg.incomeTypes;
+    state.caixinhas   = cfg.caixinhas;
+    localStorage.setItem('configCache', JSON.stringify(cfg));
     populateCategorySelect();
     populateIncomeTypeSelect();
     populateCaixinhaSelect();
-  } catch(e) { showToast('Erro ao carregar config'); }
+  } catch(e) {
+    if (!cached) showToast('Erro ao carregar configurações');
+  }
+}
+
+function reloadApp() {
+  state.monthData = null;
+  state.annualLoaded = false;
+  state.caixinhasLoaded = false;
+  localStorage.removeItem('configCache');
+  loadConfig().then(() => {
+    if (state.currentSection === 'dash') loadDash();
+    else if (state.currentSection === 'hist') loadHist();
+    else if (state.currentSection === 'anual') loadAnual();
+    else if (state.currentSection === 'caixinhas') loadCaixinhas();
+  });
+  showToast('Atualizando…');
 }
 
 function setDefaultDate() {
